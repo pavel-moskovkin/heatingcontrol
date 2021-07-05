@@ -4,6 +4,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"heatingcontrol/config"
 	"heatingcontrol/mosquito"
@@ -12,6 +13,7 @@ import (
 type Valve struct {
 	cli          mosquito.Client
 	cfg          *config.Config
+	currentLevel *uint
 	SetLevel     chan uint
 	sensorsCache map[int]*int
 }
@@ -24,7 +26,7 @@ func NewValve(client mosquito.Client, cfg *config.Config) *Valve {
 	return &Valve{
 		cli:          client,
 		cfg:          cfg,
-		SetLevel:     make(chan uint, 0),
+		SetLevel:     make(chan uint, cfg.SensorsCount),
 		sensorsCache: sensors,
 	}
 }
@@ -41,7 +43,7 @@ func (v *Valve) Start() {
 				v.cli.PubValveLevel(lvl)
 			}
 		}
-	}(v.cli.Ch)
+	}(v.cli.ValveListener)
 }
 
 func (v *Valve) ProcessData(d *mosquito.SensorData) {
@@ -54,30 +56,61 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 	i := d.Value
 	v.sensorsCache[id] = &i
 
-	ready := true
+	// check if received all sensor data
 	for _, val := range v.sensorsCache {
 		if val == nil {
-			ready = false
+			return
 		}
 	}
 
-	if ready {
-		var average int
-		for _, val := range v.sensorsCache {
-			average += *val
-		}
-		average = average / v.cfg.SensorsCount
-		log.Printf("Average temperature %v\n", average)
+	cfgTempLvl := v.cfg.TemperatureLevel
+	time.Sleep(time.Second)
 
-		if average != v.cfg.TemperatureLevel {
-			onePercent := float32(v.cfg.TemperatureLevel) / float32(100)
-			percentOf := float32(average) / onePercent
-			setLevel := (100 - int(percentOf)) / 2
-			log.Printf("Settiinig valve level to %v\n", setLevel)
-			v.SetLevel <- uint(setLevel)
-		}
+	// first try - setting valve openness equal to required temperature
+	if v.currentLevel == nil {
+		log.Printf("[valve] Setting valve level to default %v\n", cfgTempLvl)
+		set := uint(cfgTempLvl)
+		v.currentLevel = &set
+		// todo loop
+		v.SetLevel <- set
+		v.resetCache()
+		return
 	}
 
+	var total int
+	for _, val := range v.sensorsCache {
+		total += *val
+	}
+	average := total / v.cfg.SensorsCount
+	log.Printf("Average temperature %v\n", average)
+
+	if average != cfgTempLvl {
+		// todo move to const
+		onePercent := float32(cfgTempLvl) / float32(100)
+		percentOf := float32(average) / onePercent
+		if percentOf > 100 {
+			percentOf = 100
+		}
+		var setLevel uint
+		changeOpenness := cfgTempLvl * int(percentOf) / 100
+		if average > cfgTempLvl {
+			// set valve openness lower
+			setLevel = uint(cfgTempLvl) - uint(changeOpenness)
+		}
+		if average < cfgTempLvl {
+			// set valve openness higher
+			setLevel = uint(cfgTempLvl) + uint(changeOpenness)
+		}
+
+		log.Printf("Setting valve level from %v to %v\n", *v.currentLevel, setLevel)
+
+		for i := 0; i < v.cfg.SensorsCount; i++ {
+			v.SetLevel <- setLevel
+		}
+
+		v.currentLevel = &setLevel
+		v.resetCache()
+	}
 }
 
 func (v *Valve) resetCache() {

@@ -1,3 +1,4 @@
 temperature_level: 22
 sensors_count: 5
+sensor_measure_timeout: 5
 mqtt_port: 1883

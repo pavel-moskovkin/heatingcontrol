@@ -9,9 +9,10 @@ import (
 )
 
 type Config struct {
-	TemperatureLevel int `yaml:"temperature_level"`
-	SensorsCount     int `yaml:"sensors_count"`
-	MqttPort         int `yaml:"mqtt_port"`
+	TemperatureLevel     int `yaml:"temperature_level"`
+	SensorsCount         int `yaml:"sensors_count"`
+	SensorMeasureTimeout int `yaml:"sensor_measure_timeout"` // seconds
+	MqttPort             int `yaml:"mqtt_port"`
 }
 
 func ReadConfig() (*Config, error) {

@@ -40,7 +40,7 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 
 type Client struct {
 	mqtt.Client
-	Ch chan SensorData
+	ValveListener chan SensorData
 }
 
 func NewMqttClient(cfg *config.Config) *Client {
@@ -58,8 +58,8 @@ func NewMqttClient(cfg *config.Config) *Client {
 		log.Fatal(token.Error())
 	}
 	return &Client{
-		Client: client,
-		Ch:     make(chan SensorData, 0),
+		Client:        client,
+		ValveListener: make(chan SensorData, 0),
 	}
 }
 
@@ -94,7 +94,7 @@ func (c *Client) SubData() {
 		if err := json.Unmarshal(bytes, &data); err != nil {
 			log.Panic(err)
 		}
-		c.Ch <- data
+		c.ValveListener <- data
 	}
 	token := c.Subscribe(TopicReadingsTemperature, 1, handler)
 	token.Wait()
@@ -102,5 +102,5 @@ func (c *Client) SubData() {
 }
 
 func (c *Client) Stop() {
-	close(c.Ch)
+	close(c.ValveListener)
 }

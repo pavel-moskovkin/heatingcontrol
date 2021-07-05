@@ -25,8 +25,8 @@ func main() {
 	v.Start()
 
 	for i := 0; i < cfg.SensorsCount; i++ {
-		s := sensor.NewSensor(*client, v.SetLevel)
-		log.Printf("Sensor-%v created\n", i)
+		s := sensor.NewSensor(cfg, *client, v.SetLevel)
+		log.Printf("[sensor-%v] created\n", i)
 		s.Start()
 	}
 	// TODO defer s.Stop()
