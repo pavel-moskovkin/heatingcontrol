@@ -31,6 +31,6 @@ func main() {
 	}
 	// TODO defer s.Stop()
 
-	time.Sleep(100 * time.Second)
+	time.Sleep(1000 * time.Second)
 	fmt.Println("done.")
 }

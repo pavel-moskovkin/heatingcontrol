@@ -39,8 +39,6 @@ func (v *Valve) Start() {
 			select {
 			case d := <-ch:
 				v.ProcessData(&d)
-			case lvl := <-v.SetLevel:
-				v.cli.PubValveLevel(lvl)
 			}
 		}
 	}(v.cli.ValveListener)
@@ -69,11 +67,7 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 	// first try - setting valve openness equal to required temperature
 	if v.currentLevel == nil {
 		log.Printf("[valve] Setting valve level to default %v\n", cfgTempLvl)
-		set := uint(cfgTempLvl)
-		v.currentLevel = &set
-		// todo loop
-		v.SetLevel <- set
-		v.resetCache()
+		v.setLevel(uint(cfgTempLvl))
 		return
 	}
 
@@ -104,19 +98,23 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 
 		log.Printf("Setting valve level from %v to %v\n", *v.currentLevel, setLevel)
 
-		for i := 0; i < v.cfg.SensorsCount; i++ {
-			v.SetLevel <- setLevel
-		}
-
-		v.currentLevel = &setLevel
-		v.resetCache()
+		v.setLevel(setLevel)
 	}
 }
 
 func (v *Valve) resetCache() {
-	for _, v := range v.sensorsCache {
-		if v != nil {
-			v = nil
+	for k, val := range v.sensorsCache {
+		if val != nil {
+			v.sensorsCache[k] = nil
 		}
 	}
+}
+
+func (v *Valve) setLevel(set uint) {
+	for i := 0; i < v.cfg.SensorsCount; i++ {
+		v.SetLevel <- set
+	}
+	v.currentLevel = &set
+	v.cli.PubValveLevel(set)
+	v.resetCache()
 }
