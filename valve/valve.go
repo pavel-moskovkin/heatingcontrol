@@ -103,18 +103,16 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 }
 
 func (v *Valve) resetCache() {
-	for k, val := range v.sensorsCache {
-		if val != nil {
-			v.sensorsCache[k] = nil
-		}
+	for k := range v.sensorsCache {
+		v.sensorsCache[k] = nil
 	}
 }
 
-func (v *Valve) setLevel(set uint) {
+func (v *Valve) setLevel(value uint) {
 	for i := 0; i < v.cfg.SensorsCount; i++ {
-		v.SetLevel <- set
+		v.SetLevel <- value
 	}
-	v.currentLevel = &set
-	v.cli.PubValveLevel(set)
+	v.currentLevel = &value
+	v.cli.PubValveLevel(value)
 	v.resetCache()
 }
