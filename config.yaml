@@ -1,0 +1,3 @@
+temperature_level: 22
+sensors_count: 5
+mqtt_port: 1883
