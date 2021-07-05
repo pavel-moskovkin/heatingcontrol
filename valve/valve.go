@@ -49,7 +49,7 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 	if err != nil {
 		log.Fatalf("Error parsing sensor ID: %v", err.Error())
 	}
-	log.Printf("[valve] Receiced data: %+v\n", d)
+	log.Printf("[valve] Receiced data: %+v\n", *d)
 
 	i := d.Value
 	v.sensorsCache[id] = &i
