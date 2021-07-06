@@ -67,10 +67,10 @@ func (s *Sensor) randomTemperatureChange() {
 }
 
 func defineChangeTemperaturePercentage(valveLevel uint) int {
-	valveLevel = valveLevel - valveLevel%10
+	valveLevel = valveLevel - valveLevel%10 + 10
 	switch valveLevel {
-	case 0:
-		return -50
+	// case 0:
+	// 	return -50
 	case 10:
 		return -40
 	case 20:
@@ -90,6 +90,8 @@ func defineChangeTemperaturePercentage(valveLevel uint) int {
 	case 90:
 		return 40
 	case 100:
+		return 50
+	case 110:
 		return 50
 	}
 	return 0

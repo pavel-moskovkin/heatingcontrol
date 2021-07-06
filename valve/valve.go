@@ -12,11 +12,12 @@ import (
 )
 
 type Valve struct {
-	cli          mosquito.Client
-	cfg          *config.Config
-	currentLevel *uint
-	SetLevel     chan uint
-	sensorsCache map[int]*int
+	cli                      mosquito.Client
+	cfg                      *config.Config
+	currentLevel             *uint
+	SetLevel                 chan uint
+	sensorsCache             map[int]*int
+	averageTemperatureLedger []uint
 }
 
 func NewValve(client mosquito.Client, cfg *config.Config) *Valve {
@@ -25,10 +26,11 @@ func NewValve(client mosquito.Client, cfg *config.Config) *Valve {
 		sensors[i] = nil
 	}
 	return &Valve{
-		cli:          client,
-		cfg:          cfg,
-		SetLevel:     make(chan uint, cfg.SensorsCount),
-		sensorsCache: sensors,
+		cli:                      client,
+		cfg:                      cfg,
+		SetLevel:                 make(chan uint, cfg.SensorsCount),
+		sensorsCache:             sensors,
+		averageTemperatureLedger: make([]uint, 0),
 	}
 }
 
@@ -79,6 +81,8 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 	}
 	average := total / v.cfg.SensorsCount
 	log.Printf("[valve] Average temperature %v\n", average)
+	v.averageTemperatureLedger = append(v.averageTemperatureLedger, uint(average))
+	log.Printf("[valve] Average temperature history: %v\n", v.averageTemperatureLedger)
 
 	if average != cfgTempLvl {
 		// todo move to const
@@ -86,7 +90,7 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 		percentOf := float32(average) / onePercent
 		fmt.Printf("percentOf = %v\n", percentOf)
 		if percentOf > 100 {
-			percentOf = 100
+			percentOf = percentOf - 100
 		} else {
 			percentOf = 100 - percentOf
 		}
