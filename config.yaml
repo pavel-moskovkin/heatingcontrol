@@ -1,6 +1,7 @@
 temperature_level: 22
 sensors_count: 5
-sensor_measure_timeout: 5
+sensor_measure_timeout: 5s
+work_time: 200s
 mqtt:
   broker: broker.hivemq.com
   port: 1883

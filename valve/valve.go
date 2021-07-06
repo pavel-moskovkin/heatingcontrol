@@ -22,6 +22,7 @@ type Valve struct {
 	SetLevel                 chan uint // used to indicate the sensors the current valve level
 	sensorsCache             map[int]*int
 	averageTemperatureLedger []uint // information purposes only
+	done                     chan struct{}
 }
 
 func NewValve(client mosquito.Client, cfg *config.Config) *Valve {
@@ -35,6 +36,7 @@ func NewValve(client mosquito.Client, cfg *config.Config) *Valve {
 		SetLevel:                 make(chan uint, cfg.SensorsCount),
 		sensorsCache:             sensors,
 		averageTemperatureLedger: make([]uint, 0),
+		done:                     make(chan struct{}, 1),
 	}
 }
 
@@ -46,6 +48,9 @@ func (v *Valve) Start() {
 			select {
 			case d := <-ch:
 				v.ProcessData(&d)
+			case <-v.done:
+				close(v.done)
+				return
 			}
 		}
 	}(v.client.ValveListener)
@@ -92,7 +97,6 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 	log.Printf("[valve] Average temperature history: %v\n", v.averageTemperatureLedger)
 
 	if average != cfgTempLvl {
-		// todo move to const
 		onePercent := float32(cfgTempLvl) / float32(100)
 		percentOf := float32(average) / onePercent
 		fmt.Printf("percentOf = %v\n", percentOf)
@@ -145,4 +149,9 @@ func (v *Valve) setLevel(value uint) {
 	v.currentLevel = &value
 	v.client.PubValveLevel(value)
 	v.resetCache()
+}
+
+func (v *Valve) Stop() {
+	v.done <- struct{}{}
+	close(v.SetLevel)
 }

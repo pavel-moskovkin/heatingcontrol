@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	instances int
+	numInstances int
 )
 
 type Sensor struct {
@@ -18,7 +18,8 @@ type Sensor struct {
 	cli         mosquito.Client
 	id          int
 	temperature int
-	valveLevel  chan uint
+	done        chan struct{}
+	valveLevel  chan uint // read to adjust current sensor temperature
 }
 
 func init() {
@@ -29,10 +30,11 @@ func NewSensor(cfg *config.Config, client mosquito.Client, valveLevel chan uint)
 	s := &Sensor{
 		cfg:        cfg,
 		cli:        client,
-		id:         instances,
+		id:         numInstances,
+		done:       make(chan struct{}, 1),
 		valveLevel: valveLevel,
 	}
-	instances++
+	numInstances++
 	return s
 }
 
@@ -50,27 +52,32 @@ func (s *Sensor) Start() {
 				s.temperature = s.temperature + s.temperature*changeOpenness/100
 
 				s.cli.PubData(s.id, s.temperature)
-				time.Sleep(time.Duration(s.cfg.SensorMeasureTimeout) * time.Second)
+				time.Sleep(s.cfg.SensorMeasureTimeout)
+			case <-s.done:
+				close(s.done)
+				return
 			}
 		}
 	}(s.cli)
 }
 
 func (s *Sensor) Stop() {
-	close(s.valveLevel)
+	s.done <- struct{}{}
 }
 
 // randomly decrease area temperature by [0;2) degrees
 func (s *Sensor) randomTemperatureChange() {
-	t := rand.Intn(2)
-	s.temperature = s.temperature - t
+	s.temperature = s.temperature - rand.Intn(2)
 }
 
+// depending on valve openness level, return value representing a number on
+// how many percents will be changed current temperature.
+// Positive number means that the temperature will be increased, negative number means that
+// the temperature will be increased on than percentage.
 func defineChangeTemperaturePercentage(valveLevel uint) int {
+	// round up to get higher value
 	valveLevel = valveLevel - valveLevel%10 + 10
 	switch valveLevel {
-	// case 0:
-	// 	return -50
 	case 10:
 		return -40
 	case 20:
@@ -93,6 +100,7 @@ func defineChangeTemperaturePercentage(valveLevel uint) int {
 		return 50
 	case 110:
 		return 50
+	default:
+		return 0
 	}
-	return 0
 }

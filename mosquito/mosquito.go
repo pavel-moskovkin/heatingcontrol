@@ -29,15 +29,15 @@ type ValveLevel struct {
 }
 
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	fmt.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+	log.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
 }
 
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
-	fmt.Println("Connected")
+	log.Println("Connected")
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-	fmt.Printf("[ERROR] Connect lost: %v", err)
+	log.Printf("[ERROR] Connect lost: %v", err)
 }
 
 type Client struct {
@@ -115,9 +115,10 @@ func (c *Client) SubData() {
 	}
 	token := c.Subscribe(TopicReadingsTemperature, 1, handler)
 	token.Wait()
-	fmt.Printf("[mqtt] Subscribed to topic %s\n", TopicReadingsTemperature)
+	log.Printf("[mqtt] Subscribed to topic %s\n", TopicReadingsTemperature)
 }
 
 func (c *Client) Stop() {
 	close(c.ValveListener)
+	c.Disconnect(250)
 }

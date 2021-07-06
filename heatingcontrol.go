@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -23,14 +22,27 @@ func main() {
 
 	v := valve.NewValve(*client, cfg)
 	v.Start()
+	defer v.Stop()
 
+	sensors := make([]*sensor.Sensor, cfg.SensorsCount)
 	for i := 0; i < cfg.SensorsCount; i++ {
 		s := sensor.NewSensor(cfg, *client, v.SetLevel)
 		log.Printf("[sensor-%v] created\n", i)
 		s.Start()
+		sensors[i] = s
 	}
-	// TODO defer s.Stop()
 
-	time.Sleep(1000 * time.Second)
-	fmt.Println("done.")
+	defer func(sensors []*sensor.Sensor) {
+		for _, s := range sensors {
+			s.Stop()
+		}
+	}(sensors)
+
+	select {
+	case <-time.After(cfg.WorkTime):
+		// some useful info here if needed
+		log.Println("Stopping work after timeout reached")
+	}
+
+	log.Println("done.")
 }
