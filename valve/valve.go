@@ -1,6 +1,7 @@
 package valve
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -66,8 +67,9 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 
 	// first try - setting valve openness equal to required temperature
 	if v.currentLevel == nil {
-		log.Printf("[valve] Setting valve level to default %v\n", cfgTempLvl)
-		v.setLevel(uint(cfgTempLvl))
+		// TODO const
+		log.Printf("[valve] Setting valve level to default %v\n", 50)
+		v.setLevel(uint(50))
 		return
 	}
 
@@ -76,29 +78,41 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 		total += *val
 	}
 	average := total / v.cfg.SensorsCount
-	log.Printf("Average temperature %v\n", average)
+	log.Printf("[valve] Average temperature %v\n", average)
 
 	if average != cfgTempLvl {
 		// todo move to const
 		onePercent := float32(cfgTempLvl) / float32(100)
 		percentOf := float32(average) / onePercent
+		fmt.Printf("percentOf = %v\n", percentOf)
 		if percentOf > 100 {
 			percentOf = 100
+		} else {
+			percentOf = 100 - percentOf
 		}
+		fmt.Printf("percentOf = %v\n", percentOf)
+
 		var setLevel uint
-		changeOpenness := cfgTempLvl * int(percentOf) / 100
+		changeOpenness := 50 * int(percentOf) / 100
+		fmt.Printf("changeOpenness = %v\n", changeOpenness)
+
 		if average > cfgTempLvl {
-			// set valve openness lower
-			setLevel = uint(cfgTempLvl) - uint(changeOpenness)
+			// set valve openness lower 50% [0;50)
+			setLevel = 50 - uint(changeOpenness)
 		}
 		if average < cfgTempLvl {
-			// set valve openness higher
-			setLevel = uint(cfgTempLvl) + uint(changeOpenness)
+			// set valve openness higher 50% [50;100]
+			setLevel = 50 + uint(changeOpenness)
 		}
+		fmt.Printf("setLevel = %v\n", setLevel)
 
-		log.Printf("Setting valve level from %v to %v\n", *v.currentLevel, setLevel)
+		log.Printf("[valve] Setting valve level from %v to %v\n", *v.currentLevel, setLevel)
 
 		v.setLevel(setLevel)
+	} else {
+		log.Printf("[valve] Successfully reached average temperature: %v\n", average)
+		log.Printf("[valve] Remain same valve openness: %v\n", *v.currentLevel)
+		v.setLevel(*v.currentLevel)
 	}
 }
 

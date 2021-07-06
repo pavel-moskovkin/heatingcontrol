@@ -12,7 +12,15 @@ type Config struct {
 	TemperatureLevel     int `yaml:"temperature_level"`
 	SensorsCount         int `yaml:"sensors_count"`
 	SensorMeasureTimeout int `yaml:"sensor_measure_timeout"` // seconds
-	MqttPort             int `yaml:"mqtt_port"`
+	Mqtt                 `yaml:"mqtt"`
+}
+
+type Mqtt struct {
+	Port     int    `yaml:"port"`
+	Broker   string `yaml:"broker"`
+	ClientID string `yaml:"client_id"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 func ReadConfig() (*Config, error) {

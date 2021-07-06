@@ -44,19 +44,38 @@ type Client struct {
 }
 
 func NewMqttClient(cfg *config.Config) *Client {
-	var broker = "broker.emqx.io"
+	// mqtt.ERROR = log.New(os.Stdout, "[ERROR] ", 0)
+	// mqtt.CRITICAL = log.New(os.Stdout, "[CRIT] ", 0)
+	// mqtt.WARN = log.New(os.Stdout, "[WARN]  ", 0)
+	// mqtt.DEBUG = log.New(os.Stdout, "[DEBUG] ", 0)
+
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, cfg.MqttPort))
-	opts.SetClientID("go_mqtt_client")
-	opts.SetUsername("emqx")
-	opts.SetPassword("public")
+	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", cfg.Mqtt.Broker, cfg.Mqtt.Port))
+	opts.SetClientID(cfg.Mqtt.ClientID)
+	opts.SetUsername(cfg.Mqtt.Username)
+	opts.SetPassword(cfg.Mqtt.Password)
 	opts.SetDefaultPublishHandler(messagePubHandler)
 	opts.OnConnect = connectHandler
 	opts.OnConnectionLost = connectLostHandler
+	opts.ConnectRetryInterval = time.Second
+	opts.ConnectRetry = true
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatal(token.Error())
+		log.Fatalf("Error connecting: %v", token.Error())
 	}
+
+	go func(cli *mqtt.Client) {
+		for {
+			if !client.IsConnected() {
+				log.Printf("client.IsConnected(): connection lost\n")
+			}
+			if !client.IsConnectionOpen() {
+				log.Printf("client.IsConnectionOpen(): connection lost\n")
+			}
+			time.Sleep(time.Second)
+		}
+	}(&client)
+
 	return &Client{
 		Client:        client,
 		ValveListener: make(chan SensorData, 0),
@@ -64,7 +83,7 @@ func NewMqttClient(cfg *config.Config) *Client {
 }
 
 func (c *Client) PubValveLevel(value uint) {
-	log.Printf("PubValveLevel: %v\n", value)
+	log.Printf("[mqtt] PubValveLevel: %v\n", value)
 	sensorData := ValveLevel{
 		Level: value,
 	}
@@ -83,7 +102,7 @@ func (c *Client) PubData(sensorID, value int) {
 	payload, _ := json.Marshal(&sensorData)
 	token := c.Publish(TopicReadingsTemperature, 0, false, string(payload))
 	token.Wait()
-	log.Printf("Published %+v", sensorData)
+	// log.Printf("[mqtt] Published %+v", sensorData)
 	// time.Sleep(time.Second)
 }
 
@@ -98,7 +117,7 @@ func (c *Client) SubData() {
 	}
 	token := c.Subscribe(TopicReadingsTemperature, 1, handler)
 	token.Wait()
-	fmt.Printf("Subscribed to topic %s\n", TopicReadingsTemperature)
+	fmt.Printf("[mqtt] Subscribed to topic %s\n", TopicReadingsTemperature)
 }
 
 func (c *Client) Stop() {

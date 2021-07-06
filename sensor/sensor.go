@@ -9,7 +9,9 @@ import (
 	"heatingcontrol/mosquito"
 )
 
-var instances int
+var (
+	instances int
+)
 
 type Sensor struct {
 	cfg         *config.Config
@@ -17,6 +19,10 @@ type Sensor struct {
 	id          int
 	temperature int
 	valveLevel  chan uint
+}
+
+func init() {
+	rand.Seed(time.Now().UTC().UnixNano())
 }
 
 func NewSensor(cfg *config.Config, client mosquito.Client, valveLevel chan uint) *Sensor {
@@ -31,14 +37,14 @@ func NewSensor(cfg *config.Config, client mosquito.Client, valveLevel chan uint)
 }
 
 func (s *Sensor) Start() {
-	rand.Seed(time.Now().UTC().UnixNano())
-	s.temperature = rand.Intn(100)
+	s.temperature = 10 + rand.Intn(40)
 	s.cli.PubData(s.id, s.temperature)
 
 	go func(cli mosquito.Client) {
 		for {
 			select {
 			case lvl := <-s.valveLevel:
+				s.randomTemperatureChange()
 				log.Printf("[sensor-%v] reveived new valve level: %v", s.id, lvl)
 				changeOpenness := defineChangeTemperaturePercentage(lvl)
 				s.temperature = s.temperature + s.temperature*changeOpenness/100
@@ -52,6 +58,12 @@ func (s *Sensor) Start() {
 
 func (s *Sensor) Stop() {
 	close(s.valveLevel)
+}
+
+// randomly decrease area temperature by [0;2) degrees
+func (s *Sensor) randomTemperatureChange() {
+	t := rand.Intn(2)
+	s.temperature = s.temperature - t
 }
 
 func defineChangeTemperaturePercentage(valveLevel uint) int {
@@ -68,7 +80,7 @@ func defineChangeTemperaturePercentage(valveLevel uint) int {
 	case 40:
 		return -10
 	case 50:
-		return -5
+		return 0
 	case 60:
 		return 10
 	case 70:
