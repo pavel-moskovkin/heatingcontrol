@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"heatingcontrol/config"
@@ -14,6 +15,7 @@ import (
 const (
 	TopicReadingsTemperature = "/readings/temperature"
 	TopicSetValve            = "/actuators/room-1"
+	TemperatureType          = "temperature"
 )
 
 type SensorData struct {
@@ -35,7 +37,7 @@ var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-	fmt.Printf("Connect lost: %v", err)
+	fmt.Printf("[ERROR] Connect lost: %v", err)
 }
 
 type Client struct {
@@ -44,10 +46,12 @@ type Client struct {
 }
 
 func NewMqttClient(cfg *config.Config) *Client {
-	// mqtt.ERROR = log.New(os.Stdout, "[ERROR] ", 0)
-	// mqtt.CRITICAL = log.New(os.Stdout, "[CRIT] ", 0)
-	// mqtt.WARN = log.New(os.Stdout, "[WARN]  ", 0)
-	// mqtt.DEBUG = log.New(os.Stdout, "[DEBUG] ", 0)
+	if cfg.Mqtt.DebugMode {
+		mqtt.ERROR = log.New(os.Stdout, "[ERROR] ", 0)
+		mqtt.CRITICAL = log.New(os.Stdout, "[CRIT] ", 0)
+		mqtt.WARN = log.New(os.Stdout, "[WARN]  ", 0)
+		mqtt.DEBUG = log.New(os.Stdout, "[DEBUG] ", 0)
+	}
 
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", cfg.Mqtt.Broker, cfg.Mqtt.Port))
@@ -61,20 +65,8 @@ func NewMqttClient(cfg *config.Config) *Client {
 	opts.ConnectRetry = true
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatalf("Error connecting: %v", token.Error())
+		log.Fatalf("[mqtt] Error establishing connectiion: %v", token.Error())
 	}
-
-	go func(cli *mqtt.Client) {
-		for {
-			if !client.IsConnected() {
-				log.Printf("client.IsConnected(): connection lost\n")
-			}
-			if !client.IsConnectionOpen() {
-				log.Printf("client.IsConnectionOpen(): connection lost\n")
-			}
-			time.Sleep(time.Second)
-		}
-	}(&client)
 
 	return &Client{
 		Client:        client,
@@ -83,27 +75,32 @@ func NewMqttClient(cfg *config.Config) *Client {
 }
 
 func (c *Client) PubValveLevel(value uint) {
-	log.Printf("[mqtt] PubValveLevel: %v\n", value)
-	sensorData := ValveLevel{
+	log.Printf("[mqtt] Publishing valve level: %v\n", value)
+	valveLevel := ValveLevel{
 		Level: value,
 	}
-	payload, _ := json.Marshal(&sensorData)
+	payload, err := json.Marshal(&valveLevel)
+	if err != nil {
+		log.Printf("[ERROR][mqtt] Error Marshaling json: %+v", valveLevel)
+		return
+	}
 	token := c.Publish(TopicSetValve, 0, false, string(payload))
 	token.Wait()
-	time.Sleep(time.Second)
 }
 
 func (c *Client) PubData(sensorID, value int) {
 	sensorData := SensorData{
 		SensorID: fmt.Sprintf("sensor-%v", sensorID),
-		Type:     "temperature",
+		Type:     TemperatureType,
 		Value:    value,
 	}
-	payload, _ := json.Marshal(&sensorData)
+	payload, err := json.Marshal(&sensorData)
+	if err != nil {
+		log.Printf("[ERROR][mqtt] Error Marshaling json: %+v", sensorData)
+		return
+	}
 	token := c.Publish(TopicReadingsTemperature, 0, false, string(payload))
 	token.Wait()
-	// log.Printf("[mqtt] Published %+v", sensorData)
-	// time.Sleep(time.Second)
 }
 
 func (c *Client) SubData() {
@@ -111,7 +108,8 @@ func (c *Client) SubData() {
 		data := SensorData{}
 		bytes := msg.Payload()
 		if err := json.Unmarshal(bytes, &data); err != nil {
-			log.Panic(err)
+			log.Printf("[ERROR][mqtt] Error Unmarshaling json: %+v", string(bytes))
+			return
 		}
 		c.ValveListener <- data
 	}

@@ -11,13 +11,17 @@ import (
 	"heatingcontrol/mosquito"
 )
 
+const (
+	DefaultValveOpenness uint = 50
+)
+
 type Valve struct {
-	cli                      mosquito.Client
+	client                   mosquito.Client
 	cfg                      *config.Config
 	currentLevel             *uint
-	SetLevel                 chan uint
+	SetLevel                 chan uint // used to indicate the sensors the current valve level
 	sensorsCache             map[int]*int
-	averageTemperatureLedger []uint
+	averageTemperatureLedger []uint // information purposes only
 }
 
 func NewValve(client mosquito.Client, cfg *config.Config) *Valve {
@@ -26,7 +30,7 @@ func NewValve(client mosquito.Client, cfg *config.Config) *Valve {
 		sensors[i] = nil
 	}
 	return &Valve{
-		cli:                      client,
+		client:                   client,
 		cfg:                      cfg,
 		SetLevel:                 make(chan uint, cfg.SensorsCount),
 		sensorsCache:             sensors,
@@ -35,7 +39,7 @@ func NewValve(client mosquito.Client, cfg *config.Config) *Valve {
 }
 
 func (v *Valve) Start() {
-	v.cli.SubData()
+	v.client.SubData()
 
 	go func(ch chan mosquito.SensorData) {
 		for {
@@ -44,34 +48,37 @@ func (v *Valve) Start() {
 				v.ProcessData(&d)
 			}
 		}
-	}(v.cli.ValveListener)
+	}(v.client.ValveListener)
 }
 
 func (v *Valve) ProcessData(d *mosquito.SensorData) {
+	if d.Type != mosquito.TemperatureType {
+		log.Printf("[valve] Unknown SensorData message type: %v", d.Type)
+		return
+	}
+
 	id, err := strconv.Atoi(strings.Split(d.SensorID, "-")[1])
 	if err != nil {
-		log.Fatalf("Error parsing sensor ID: %v", err.Error())
+		log.Printf("[ERROR][valve] Error parsing sensor ID from json: %+v :%v", d, err.Error())
 	}
-	log.Printf("[valve] Receiced data: %+v\n", *d)
+	log.Printf("[valve] Receiced sensor data: %+v\n", *d)
 
-	i := d.Value
-	v.sensorsCache[id] = &i
+	v.sensorsCache[id] = &d.Value
 
-	// check if received all sensor data
+	// check if received data from all sensors
 	for _, val := range v.sensorsCache {
 		if val == nil {
 			return
 		}
 	}
 
-	cfgTempLvl := v.cfg.TemperatureLevel
 	time.Sleep(time.Second)
 
 	// first try - setting valve openness equal to required temperature
+	cfgTempLvl := v.cfg.TemperatureLevel
 	if v.currentLevel == nil {
-		// TODO const
-		log.Printf("[valve] Setting valve level to default %v\n", 50)
-		v.setLevel(uint(50))
+		log.Printf("[valve] Setting valve level to default %v\n", DefaultValveOpenness)
+		v.setLevel(DefaultValveOpenness)
 		return
 	}
 
@@ -89,24 +96,29 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 		onePercent := float32(cfgTempLvl) / float32(100)
 		percentOf := float32(average) / onePercent
 		fmt.Printf("percentOf = %v\n", percentOf)
+
+		var percentDifference float32
 		if percentOf > 100 {
-			percentOf = percentOf - 100
+			if percentOf > 200 {
+				percentOf = 200
+			}
+			percentDifference = percentOf - 100
 		} else {
-			percentOf = 100 - percentOf
+			percentDifference = 100 - percentOf
 		}
-		fmt.Printf("percentOf = %v\n", percentOf)
+		fmt.Printf("percentDifference = %v\n", percentDifference)
 
 		var setLevel uint
-		changeOpenness := 50 * int(percentOf) / 100
+		changeOpenness := DefaultValveOpenness * uint(percentDifference) / 100
 		fmt.Printf("changeOpenness = %v\n", changeOpenness)
 
+		// decreasing temperature: set valve openness lower 50% [0;50]
 		if average > cfgTempLvl {
-			// set valve openness lower 50% [0;50)
-			setLevel = 50 - uint(changeOpenness)
+			setLevel = DefaultValveOpenness - changeOpenness
 		}
+		// increasing temperature: set valve openness higher 50% [50;100]
 		if average < cfgTempLvl {
-			// set valve openness higher 50% [50;100]
-			setLevel = 50 + uint(changeOpenness)
+			setLevel = DefaultValveOpenness + changeOpenness
 		}
 		fmt.Printf("setLevel = %v\n", setLevel)
 
@@ -131,6 +143,6 @@ func (v *Valve) setLevel(value uint) {
 		v.SetLevel <- value
 	}
 	v.currentLevel = &value
-	v.cli.PubValveLevel(value)
+	v.client.PubValveLevel(value)
 	v.resetCache()
 }

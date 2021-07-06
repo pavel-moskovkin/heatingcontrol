@@ -7,3 +7,4 @@ mqtt:
   client_id:
   username:
   password:
+  debug_mode: false

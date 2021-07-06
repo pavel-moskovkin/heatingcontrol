@@ -16,11 +16,12 @@ type Config struct {
 }
 
 type Mqtt struct {
-	Port     int    `yaml:"port"`
-	Broker   string `yaml:"broker"`
-	ClientID string `yaml:"client_id"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
+	Port      int    `yaml:"port"`
+	Broker    string `yaml:"broker"`
+	ClientID  string `yaml:"client_id"`
+	Username  string `yaml:"username"`
+	Password  string `yaml:"password"`
+	DebugMode bool   `yaml:"debug_mode"`
 }
 
 func ReadConfig() (*Config, error) {
