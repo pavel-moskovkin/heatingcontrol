@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-	TemperatureLevel     int           `yaml:"temperature_level"`
+	TemperatureLevel     float64       `yaml:"temperature_level"`
 	SensorsCount         int           `yaml:"sensors_count"`
 	SensorMeasureTimeout time.Duration `yaml:"sensor_measure_timeout"`
 	WorkTime             time.Duration `yaml:"work_time"` // stop program work after this timeout

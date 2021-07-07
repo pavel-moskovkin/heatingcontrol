@@ -2,6 +2,7 @@ package sensor
 
 import (
 	"log"
+	"math"
 	"math/rand"
 	"time"
 
@@ -76,8 +77,12 @@ func (s *Sensor) randomTemperatureChange() {
 // the temperature will be increased on than percentage.
 func defineChangeTemperaturePercentage(valveLevel uint) int {
 	// round up to get higher value
-	valveLevel = valveLevel - valveLevel%10 + 10
+	tmp := float64(valveLevel) / float64(10)
+	valveLevel = uint(math.Round(tmp+0.4999) * 10)
+
 	switch valveLevel {
+	case 0:
+		return -50
 	case 10:
 		return -40
 	case 20:
@@ -97,8 +102,6 @@ func defineChangeTemperaturePercentage(valveLevel uint) int {
 	case 90:
 		return 40
 	case 100:
-		return 50
-	case 110:
 		return 50
 	default:
 		return 0

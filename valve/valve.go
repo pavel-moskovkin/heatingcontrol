@@ -3,6 +3,7 @@ package valve
 import (
 	"fmt"
 	"log"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -21,7 +22,7 @@ type Valve struct {
 	currentLevel             *uint
 	SetLevel                 chan uint // used to indicate the sensors the current valve level
 	sensorsCache             map[int]*int
-	averageTemperatureLedger []uint // information purposes only
+	averageTemperatureLedger []float64 // information purposes only
 	done                     chan struct{}
 }
 
@@ -35,7 +36,7 @@ func NewValve(client mosquito.Client, cfg *config.Config) *Valve {
 		cfg:                      cfg,
 		SetLevel:                 make(chan uint, cfg.SensorsCount),
 		sensorsCache:             sensors,
-		averageTemperatureLedger: make([]uint, 0),
+		averageTemperatureLedger: make([]float64, 0),
 		done:                     make(chan struct{}, 1),
 	}
 }
@@ -91,17 +92,19 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 	for _, val := range v.sensorsCache {
 		total += *val
 	}
-	average := total / v.cfg.SensorsCount
+	average := float64(total) / float64(v.cfg.SensorsCount)
+	// round float to 1 decimal place
+	average = math.Round(average*10) / 10
 	log.Printf("[valve] Average temperature %v\n", average)
-	v.averageTemperatureLedger = append(v.averageTemperatureLedger, uint(average))
+	v.averageTemperatureLedger = append(v.averageTemperatureLedger, average)
 	log.Printf("[valve] Average temperature history: %v\n", v.averageTemperatureLedger)
 
 	if average != cfgTempLvl {
-		onePercent := float32(cfgTempLvl) / float32(100)
-		percentOf := float32(average) / onePercent
+		onePercent := cfgTempLvl / float64(100)
+		percentOf := average / onePercent
 		fmt.Printf("percentOf = %v\n", percentOf)
 
-		var percentDifference float32
+		var percentDifference float64
 		if percentOf > 100 {
 			if percentOf > 200 {
 				percentOf = 200

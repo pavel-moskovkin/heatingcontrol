@@ -1,4 +1,4 @@
-temperature_level: 22
+temperature_level: 22.5
 sensors_count: 5
 sensor_measure_timeout: 5s
 work_time: 200s
