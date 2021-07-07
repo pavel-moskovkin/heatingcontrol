@@ -14,8 +14,9 @@ import (
 
 const (
 	TopicReadingsTemperature = "/readings/temperature"
-	TopicSetValve            = "/actuators/room-1"
-	TemperatureType          = "temperature"
+	TopicSetValveLevel       = "/actuators/room-1"
+
+	TemperatureType = "temperature"
 )
 
 type SensorData struct {
@@ -40,16 +41,24 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 	log.Printf("[ERROR] Connect lost: %v", err)
 }
 
+type ClientInterface interface {
+	PubValveLevel(value uint)
+	SubValveLevel()
+	PubSensorData(sensorID int, value float64)
+	SubSensorData()
+}
+
 type Client struct {
 	mqtt.Client
-	ValveListener chan SensorData
+	ControllerListener chan SensorData
+	ValveListener      chan ValveLevel
 }
 
 func NewMqttClient(cfg *config.Config) *Client {
 	if cfg.Mqtt.DebugMode {
 		mqtt.ERROR = log.New(os.Stdout, "[ERROR] ", 0)
 		mqtt.CRITICAL = log.New(os.Stdout, "[CRIT] ", 0)
-		mqtt.WARN = log.New(os.Stdout, "[WARN]  ", 0)
+		mqtt.WARN = log.New(os.Stdout, "[WARN] ", 0)
 		mqtt.DEBUG = log.New(os.Stdout, "[DEBUG] ", 0)
 	}
 
@@ -69,8 +78,9 @@ func NewMqttClient(cfg *config.Config) *Client {
 	}
 
 	return &Client{
-		Client:        client,
-		ValveListener: make(chan SensorData, 0),
+		Client:             client,
+		ControllerListener: make(chan SensorData, 0),
+		ValveListener:      make(chan ValveLevel, 0),
 	}
 }
 
@@ -84,11 +94,27 @@ func (c *Client) PubValveLevel(value uint) {
 		log.Printf("[ERROR][mqtt] Error Marshaling json: %+v", valveLevel)
 		return
 	}
-	token := c.Publish(TopicSetValve, 0, false, string(payload))
+	token := c.Publish(TopicSetValveLevel, 0, false, string(payload))
 	token.Wait()
 }
 
-func (c *Client) PubData(sensorID int, value float64) {
+func (c *Client) SubValveLevel() {
+	// TODO return chan?
+	var handler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
+		valveLevel := ValveLevel{}
+		bytes := msg.Payload()
+		if err := json.Unmarshal(bytes, &valveLevel); err != nil {
+			log.Printf("[ERROR][mqtt] Error Unmarshaling json: %+v", string(bytes))
+			return
+		}
+		c.ValveListener <- valveLevel
+	}
+	token := c.Subscribe(TopicSetValveLevel, 1, handler)
+	token.Wait()
+	log.Printf("[mqtt] Subscribed to topic %s\n", TopicSetValveLevel)
+}
+
+func (c *Client) PubSensorData(sensorID int, value float64) {
 	sensorData := SensorData{
 		SensorID: fmt.Sprintf("sensor-%v", sensorID),
 		Type:     TemperatureType,
@@ -103,7 +129,8 @@ func (c *Client) PubData(sensorID int, value float64) {
 	token.Wait()
 }
 
-func (c *Client) SubData() {
+func (c *Client) SubSensorData() {
+	// TODO return chan?
 	var handler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 		data := SensorData{}
 		bytes := msg.Payload()
@@ -111,7 +138,7 @@ func (c *Client) SubData() {
 			log.Printf("[ERROR][mqtt] Error Unmarshaling json: %+v", string(bytes))
 			return
 		}
-		c.ValveListener <- data
+		c.ControllerListener <- data
 	}
 	token := c.Subscribe(TopicReadingsTemperature, 1, handler)
 	token.Wait()
@@ -119,6 +146,6 @@ func (c *Client) SubData() {
 }
 
 func (c *Client) Stop() {
-	close(c.ValveListener)
+	close(c.ControllerListener)
 	c.Disconnect(250)
 }

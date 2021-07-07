@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"heatingcontrol/config"
+	"heatingcontrol/controller"
 	"heatingcontrol/mosquito"
 	"heatingcontrol/sensor"
 	"heatingcontrol/valve"
@@ -24,9 +25,13 @@ func main() {
 	v.Start()
 	defer v.Stop()
 
+	c := controller.NewController(cfg, *client, v)
+	c.Start()
+	defer c.Stop()
+
 	sensors := make([]*sensor.Sensor, cfg.SensorsCount)
 	for i := 0; i < cfg.SensorsCount; i++ {
-		s := sensor.NewSensor(cfg, *client, v.SetLevel)
+		s := sensor.NewSensor(cfg, *client, c.SetValveLevel)
 		log.Printf("[sensor-%v] created\n", i)
 		s.Start()
 		sensors[i] = s
