@@ -18,7 +18,7 @@ type Sensor struct {
 	cfg         *config.Config
 	cli         mosquito.Client
 	id          int
-	temperature int
+	temperature float64
 	done        chan struct{}
 	valveLevel  chan uint // read to adjust current sensor temperature
 }
@@ -40,7 +40,8 @@ func NewSensor(cfg *config.Config, client mosquito.Client, valveLevel chan uint)
 }
 
 func (s *Sensor) Start() {
-	s.temperature = 10 + rand.Intn(40)
+	// init in range [10.1;50.1)
+	s.temperature = 10 + float64(rand.Intn(400)+1)/10
 	s.cli.PubData(s.id, s.temperature)
 
 	go func(cli mosquito.Client) {
@@ -50,7 +51,9 @@ func (s *Sensor) Start() {
 				s.randomTemperatureChange()
 				log.Printf("[sensor-%v] reveived new valve level: %v", s.id, lvl)
 				changeOpenness := defineChangeTemperaturePercentage(lvl)
-				s.temperature = s.temperature + s.temperature*changeOpenness/100
+				s.temperature = s.temperature + s.temperature*float64(changeOpenness)/100
+				// round float to 1 decimal place
+				s.temperature = math.Round(s.temperature*10) / 10
 
 				s.cli.PubData(s.id, s.temperature)
 				time.Sleep(s.cfg.SensorMeasureTimeout)
@@ -68,7 +71,7 @@ func (s *Sensor) Stop() {
 
 // randomly decrease area temperature by [0;2) degrees
 func (s *Sensor) randomTemperatureChange() {
-	s.temperature = s.temperature - rand.Intn(2)
+	s.temperature = s.temperature - float64(rand.Intn(2))
 }
 
 // depending on valve openness level, return value representing a number on

@@ -19,14 +19,14 @@ type Valve struct {
 	client                   mosquito.Client
 	cfg                      *config.Config
 	currentLevel             *uint
-	SetLevel                 chan uint // used to indicate the sensors the current valve level
-	sensorsCache             map[int]*int
-	averageTemperatureLedger []float64 // information purposes only
+	SetLevel                 chan uint        // used to indicate the sensors the current valve level
+	sensorsCache             map[int]*float64 // [sensor-id]value
+	averageTemperatureLedger []float64        // information purposes only
 	done                     chan struct{}
 }
 
 func NewValve(client mosquito.Client, cfg *config.Config) *Valve {
-	sensors := make(map[int]*int, cfg.SensorsCount)
+	sensors := make(map[int]*float64, cfg.SensorsCount)
 	for i := 0; i < cfg.SensorsCount; i++ {
 		sensors[i] = nil
 	}
@@ -87,11 +87,11 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 		return
 	}
 
-	var total int
+	var total float64
 	for _, val := range v.sensorsCache {
 		total += *val
 	}
-	average := float64(total) / float64(v.cfg.SensorsCount)
+	average := total / float64(v.cfg.SensorsCount)
 	// round float to 1 decimal place
 	average = math.Round(average*10) / 10
 	log.Printf("[valve] Average temperature %v\n", average)

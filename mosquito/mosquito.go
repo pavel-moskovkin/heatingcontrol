@@ -19,9 +19,9 @@ const (
 )
 
 type SensorData struct {
-	SensorID string `json:"sensorID"`
-	Type     string `json:"type"`
-	Value    int    `json:"value"`
+	SensorID string  `json:"sensorID"`
+	Type     string  `json:"type"`
+	Value    float64 `json:"value"`
 }
 
 type ValveLevel struct {
@@ -88,7 +88,7 @@ func (c *Client) PubValveLevel(value uint) {
 	token.Wait()
 }
 
-func (c *Client) PubData(sensorID, value int) {
+func (c *Client) PubData(sensorID int, value float64) {
 	sensorData := SensorData{
 		SensorID: fmt.Sprintf("sensor-%v", sensorID),
 		Type:     TemperatureType,
