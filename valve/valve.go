@@ -1,7 +1,6 @@
 package valve
 
 import (
-	"fmt"
 	"log"
 	"math"
 	"strconv"
@@ -102,7 +101,7 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 	if average != cfgTempLvl {
 		onePercent := cfgTempLvl / float64(100)
 		percentOf := average / onePercent
-		fmt.Printf("percentOf = %v\n", percentOf)
+		log.Printf("[DEBUG] percentOf = %v\n", percentOf)
 
 		var percentDifference float64
 		if percentOf > 100 {
@@ -113,11 +112,11 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 		} else {
 			percentDifference = 100 - percentOf
 		}
-		fmt.Printf("percentDifference = %v\n", percentDifference)
+		log.Printf("[DEBUG] percentDifference = %v\n", percentDifference)
 
 		var setLevel uint
 		changeOpenness := DefaultValveOpenness * uint(percentDifference) / 100
-		fmt.Printf("changeOpenness = %v\n", changeOpenness)
+		log.Printf("[DEBUG] changeOpenness = %v\n", changeOpenness)
 
 		// decreasing temperature: set valve openness lower 50% [0;50]
 		if average > cfgTempLvl {
@@ -127,7 +126,7 @@ func (v *Valve) ProcessData(d *mosquito.SensorData) {
 		if average < cfgTempLvl {
 			setLevel = DefaultValveOpenness + changeOpenness
 		}
-		fmt.Printf("setLevel = %v\n", setLevel)
+		log.Printf("[DEBUG] setLevel = %v\n", setLevel)
 
 		log.Printf("[valve] Setting valve level from %v to %v\n", *v.currentLevel, setLevel)
 
