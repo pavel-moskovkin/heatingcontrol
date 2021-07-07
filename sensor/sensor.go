@@ -53,7 +53,13 @@ func (s *Sensor) Start() {
 				s.randomTemperatureChange()
 				log.Printf("[sensor-%v] reveived new valve level: %v", s.id, lvl)
 				changeOpenness := valve.DefineChangeTemperaturePercentage(lvl)
-				s.temperature = s.temperature + s.temperature*float64(changeOpenness)/100
+				changeValue := s.temperature * float64(changeOpenness) / 100
+				if s.temperature >= 0 {
+					s.temperature = s.temperature + changeValue
+				} else {
+					s.temperature = s.temperature - changeValue
+				}
+
 				// round float to 1 decimal place
 				s.temperature = math.Round(s.temperature*10) / 10
 
@@ -71,7 +77,7 @@ func (s *Sensor) Stop() {
 	close(s.done)
 }
 
-// randomly decrease area temperature by [0;2) degrees
+// randomly decrease area temperature by [0;1] degrees
 func (s *Sensor) randomTemperatureChange() {
 	s.temperature = s.temperature - float64(rand.Intn(2))
 }
