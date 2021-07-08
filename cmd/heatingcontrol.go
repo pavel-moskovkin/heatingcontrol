@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"time"
 
@@ -12,7 +13,10 @@ import (
 )
 
 func main() {
-	cfg, err := config.ReadConfig()
+	argConfig := flag.String("config", "config.yaml", "path to config file")
+	flag.Parse()
+
+	cfg, err := config.ReadConfig(*argConfig)
 	if err != nil {
 		log.Fatal(err)
 	}

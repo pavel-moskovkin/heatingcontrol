@@ -11,3 +11,6 @@ logs:
 
 docker build:
 `docker build -t heatingcontrol .`
+
+TODO
+- run with config

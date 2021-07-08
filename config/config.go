@@ -26,9 +26,9 @@ type Mqtt struct {
 	DebugMode bool   `yaml:"debug_mode"`
 }
 
-func ReadConfig() (*Config, error) {
+func ReadConfig(filepath string) (*Config, error) {
 	var cfg Config
-	f, err := os.Open("config.yaml")
+	f, err := os.Open(filepath)
 	if err != nil {
 		msg := fmt.Sprintf("unable to read Config: %v", err.Error())
 		return nil, errors.New(msg)
