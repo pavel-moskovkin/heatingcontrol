@@ -33,12 +33,12 @@ func NewValve(client mosquito.Client, cfg *config.Config) *Valve {
 }
 
 func (v *Valve) Start() {
-	v.client.SubValveLevel()
+	listener := v.client.SubValveLevel()
 
 	go func(cli mosquito.Client) {
 		for {
 			select {
-			case d := <-cli.ValveListener:
+			case d := <-listener:
 				lvl := d.Level
 				// impossible situation. just in case.
 				if lvl > 100 {

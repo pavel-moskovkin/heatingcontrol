@@ -17,14 +17,13 @@ type Controller struct {
 	client                   mosquito.Client
 	cfg                      *config.Config
 	sensorsCache             map[int]*float64 // [sensor-id]value
-	averageTemperatureLedger []float64
-	vlv                      *valve.Valve // information purposes only
-	SetValveLevel            chan uint    // used to indicate the sensors the current valve level
+	averageTemperatureLedger []float64        // information purposes only
+	vlv                      *valve.Valve
+	SetValveLevel            chan uint // used to send to the sensors the current valve level
 	done                     chan struct{}
 }
 
 func NewController(cfg *config.Config, client mosquito.Client, valve *valve.Valve) *Controller {
-	// TODO read current lvl from valve
 	sensors := make(map[int]*float64, cfg.SensorsCount)
 	for i := 0; i < cfg.SensorsCount; i++ {
 		sensors[i] = nil
@@ -41,12 +40,12 @@ func NewController(cfg *config.Config, client mosquito.Client, valve *valve.Valv
 }
 
 func (c *Controller) Start() {
-	c.client.SubSensorData()
+	listener := c.client.SubSensorData()
 
 	go func(cli mosquito.Client) {
 		for {
 			select {
-			case d := <-cli.ControllerListener:
+			case d := <-listener:
 				c.ProcessData(&d)
 			case <-c.done:
 				return
