@@ -7,3 +7,7 @@ stop mosquitto:
 logs:
 `docker logs -f mosquitto`
 
+---
+
+docker build:
+`docker build -t heatingcontrol .`
