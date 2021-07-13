@@ -8,7 +8,7 @@ COPY go.mod .
 COPY go.sum .
 
 # Get dependencies - will also be cached if we won't change mod/sum
-RUN make mod
+RUN go mod download
 
 COPY . .
 
