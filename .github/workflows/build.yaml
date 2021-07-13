@@ -64,12 +64,13 @@ jobs:
 
       - name: Build docker image
         run: |
+          echo "IMAGE_NAME_FULL=${REGISTRY_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}" >> "${GITHUB_ENV}"
           docker build . \
-            -t "${REGISTRY_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}" \
+            -t "${IMAGE_NAME_FULL}" \
             --build-arg image_source="https://github.com/${GITHUB_REPOSITORY}"
 
       - name: Log into registry
         run: echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USERNAME}" --password-stdin
 
       - name: Push docker image
-        run: docker push "${REGISTRY_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+        run: docker push "${IMAGE_NAME_FULL}"
