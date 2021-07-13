@@ -1,0 +1,75 @@
+name: Build docker image
+on:
+  push:
+    branches:
+      - master
+#      TODO tmp
+      - heatingcontrol
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+env:
+  GO_VERSION: 1.15
+  REGISTRY_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  REGISTRY_PASSWORD: ${{ secrets.DOCKER_PASS }}
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          # Check out pull request's HEAD commit instead of the merge commit to
+          # work-around an issue where wrong commit is being checked out.
+          # For more details, see:
+          # https://github.com/actions/checkout/issues/299.
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Set up go ${{env.GO_VERSION}}
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{env.GO_VERSION}}
+      - name: Add bin to path
+        run: echo "${{env.GOPATH}}/bin" >> $GITHUB_PATH
+      - name: Go mod cache setup
+        uses: actions/cache@v2
+        with:
+          path: ${{env.GOPATH}}/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Fetch dependencies
+        run: |
+          go mod download
+          make vendor
+      - name: Run tests
+        if: always()
+        run: make test
+  build-push:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+      - name: Set env
+        run: |
+          REF_SHORT="${GITHUB_REF##*/}"
+          SHA_SHORT="${GITHUB_SHA:0:8}"
+          IMAGE_NAME="${GITHUB_REPOSITORY##*/}"
+          [[ "${REF_SHORT}" == "master" ]] && IMAGE_TAG=latest || IMAGE_TAG="${REF_SHORT}"
+
+          echo "REF_SHORT=${REF_SHORT}"               >> "${GITHUB_ENV}"
+          echo "SHA_SHORT=${SHA_SHORT}"               >> "${GITHUB_ENV}"
+          echo "IMAGE_NAME=${IMAGE_NAME}"             >> "${GITHUB_ENV}"
+          echo "IMAGE_TAG=${IMAGE_TAG}"               >> "${GITHUB_ENV}"
+
+      - name: Build docker image
+        run: |
+          docker build . \
+            -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+            --build-arg image_source="https://github.com/${GITHUB_REPOSITORY}"
+
+      - name: Log into registry
+        run: echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USERNAME}" --password-stdin
+
+      - name: Push docker image
+        run: docker push "${IMAGE_NAME}:${IMAGE_TAG}"

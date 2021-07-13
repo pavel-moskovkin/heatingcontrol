@@ -6,6 +6,10 @@ bin:
 build: bin
 	go build -o bin/heatingcontrol ./cmd/*.go
 
+.PHONY: mod
+mod:
+	go mod download
+
 .PHONY: vendor
 vendor:
 	rm -rf vendor
