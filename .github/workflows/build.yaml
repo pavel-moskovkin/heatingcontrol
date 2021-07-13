@@ -57,14 +57,14 @@ jobs:
           IMAGE_NAME="${GITHUB_REPOSITORY##*/}"
           [[ "${REF_SHORT}" == "master" ]] && IMAGE_TAG=latest || IMAGE_TAG="${REF_SHORT}"
 
-          echo "REF_SHORT=${REF_SHORT}"               >> "${GITHUB_ENV}"
-          echo "SHA_SHORT=${SHA_SHORT}"               >> "${GITHUB_ENV}"
-          echo "IMAGE_NAME=${IMAGE_NAME}"             >> "${GITHUB_ENV}"
-          echo "IMAGE_TAG=${IMAGE_TAG}"               >> "${GITHUB_ENV}"
+          echo "REF_SHORT=${REF_SHORT}"   >> "${GITHUB_ENV}"
+          echo "SHA_SHORT=${SHA_SHORT}"   >> "${GITHUB_ENV}"
+          echo "IMAGE_NAME=${IMAGE_NAME}" >> "${GITHUB_ENV}"
+          echo "IMAGE_TAG=${IMAGE_TAG}"   >> "${GITHUB_ENV}"
+          echo "IMAGE_NAME_FULL=${REGISTRY_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}" >> "${GITHUB_ENV}"
 
       - name: Build docker image
         run: |
-          echo "IMAGE_NAME_FULL=${REGISTRY_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}" >> "${GITHUB_ENV}"
           docker build . \
             -t "${env.IMAGE_NAME_FULL}" \
             --build-arg image_source="https://github.com/${GITHUB_REPOSITORY}"
