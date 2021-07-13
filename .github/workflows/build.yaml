@@ -66,11 +66,11 @@ jobs:
       - name: Build docker image
         run: |
           docker build . \
-            -t "${env.IMAGE_NAME_FULL}" \
+            -t "${{ env.IMAGE_NAME_FULL }}" \
             --build-arg image_source="https://github.com/${GITHUB_REPOSITORY}"
 
       - name: Log into registry
         run: echo "${REGISTRY_PASSWORD}" | docker login -u "${REGISTRY_USERNAME}" --password-stdin
 
       - name: Push docker image
-        run: docker push "${env.IMAGE_NAME_FULL}"
+        run: docker push "${{ env.IMAGE_NAME_FULL }}"
