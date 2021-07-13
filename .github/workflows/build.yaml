@@ -65,7 +65,7 @@ jobs:
       - name: Build docker image
         run: |
           docker build . \
-            -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+            -t "${REGISTRY_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}" \
             --build-arg image_source="https://github.com/${GITHUB_REPOSITORY}"
 
       - name: Log into registry
