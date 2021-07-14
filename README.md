@@ -12,5 +12,6 @@ logs:
 docker build:
 `docker build -t heatingcontrol .`
 
-TODO
-- run with config
+To run an application in docker-compose:
+`docker compose up`
+

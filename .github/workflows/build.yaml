@@ -3,8 +3,6 @@ on:
   push:
     branches:
       - master
-#      TODO tmp
-      - heatingcontrol
     tags:
       - v[0-9]+.[0-9]+.[0-9]+
 env:

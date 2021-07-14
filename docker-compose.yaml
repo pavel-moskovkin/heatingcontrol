@@ -1,0 +1,19 @@
+version: '3.7'
+
+services:
+  heatingcontrol:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    image: heatingcontrol:local
+    environment:
+      SETTT: 123
+      CONFIG_PATH: /opt/app/config/config.yaml
+    volumes:
+      - ./config.yaml:/opt/app/config/config.yaml
+    command:
+      - /bin/sh
+      - -c
+      - |
+        chmod +x ./bin/heatingcontrol
+        ./bin/heatingcontrol -config=$$CONFIG_PATH
