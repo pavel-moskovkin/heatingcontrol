@@ -6,6 +6,8 @@ services:
       context: ./
       dockerfile: Dockerfile
     image: heatingcontrol:local
+    depends_on:
+      - mosquitto
     environment:
       CONFIG_PATH: /opt/app/config/config.yaml
     volumes:
@@ -16,3 +18,7 @@ services:
       - |
         chmod +x ./bin/heatingcontrol
         ./bin/heatingcontrol -config=$$CONFIG_PATH
+  mosquitto:
+    image: toke/mosquitto
+    ports:
+      - 1883:1883
