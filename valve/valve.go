@@ -1,6 +1,7 @@
 package valve
 
 import (
+	"log"
 	"math"
 
 	"heatingcontrol/config"
@@ -46,6 +47,7 @@ func (v *Valve) Start() {
 				}
 				v.CurrentLevel = &lvl
 				v.MsgReceived <- MessageOk{Ok: true}
+				log.Printf("[valve] successfully set level to %v", v.CurrentLevel)
 			case <-v.done:
 				return
 			}
