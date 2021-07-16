@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"heatingcontrol/config"
@@ -20,6 +22,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	if b := os.Getenv("MQTT_BROKER"); b != "" {
+		cfg.Mqtt.Broker = b
+	}
+
+	if p := os.Getenv("MQTT_PORT"); p != "" {
+		i, err := strconv.Atoi(p)
+		if err != nil {
+			log.Fatalf("bad format MQTT_PORT: %e", err)
+		}
+		cfg.Mqtt.Port = i
+	}
+
 	log.Printf("Starting with Config:\n%+v\n", *cfg)
 
 	client := mosquito.NewMqttClient(cfg)
