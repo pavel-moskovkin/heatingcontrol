@@ -1,0 +1,12 @@
+temperature_level: 22.5 # required average temperature in the room
+sensors_count: 5 # start with number of sensors
+sensor_measure_timeout: 5s # temperature read timeout by sensors
+work_time: 200s # stop work after this timeout
+mqtt:
+#  broker: broker.hivemq.com
+  broker: mosquitto
+  port: 1883
+  client_id:
+  username:
+  password:
+  debug_mode: false
